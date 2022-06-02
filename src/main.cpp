@@ -5,8 +5,8 @@ Includes OTA firmware update.
 
 R Beech 2021
 */
-
-
+//compass support
+#include <QMC5883LCompass.h>
 //platformIO arduino lib
 #include <Arduino.h>
 //Wifi support
@@ -23,7 +23,7 @@ R Beech 2021
 #include <secrets.h>
 //create webserver
 AsyncWebServer server(80);
-
+QMC5883LCompass compass;
 
 /* Message callback of WebSerial */
 void recvMsg(uint8_t *data, size_t len){
@@ -93,55 +93,39 @@ void setup() {
   setupWifI();
   setupOTA();
   Wire.begin();
+  compass.init();
+  compass.setCalibration(-1122, 1852, -1481, 1468, -915, 1703);
+  compass.setSmoothing(5, false);
   Serial.println("Ready");
   }
 
 
-
 void loop() {
-  // put your main code here, to run repeatedly:
  ArduinoOTA.handle();
- char hex[5];
-  byte error, address;
-  int nDevices;
-  Serial.println("Scanning...");
-  WebSerial.println("Scanning...");
-  nDevices = 0;
-  for(address = 1; address < 127; address++ ) {
-    Wire.beginTransmission(address);
-    error = Wire.endTransmission();
-    if (error == 0) {
-      Serial.print("I2C device found at address 0x");
-      WebSerial.print("I2C device found at address 0x");
-      if (address<16) {
-        Serial.print("0");
-        WebSerial.print("0");
-      }
-      Serial.println(address,HEX);
-      sprintf(hex, "%x", address);
-      WebSerial.println(hex);
-      nDevices++;
-    }
-    else if (error==4) {
-      Serial.print("Unknown error at address 0x");
-      WebSerial.print("Unknown error at address 0x");
-      if (address<16) {
-        Serial.print("0");
-        WebSerial.print("0");
-      }
-      Serial.println(address,HEX);
-       sprintf(hex, "%x", address);
-      WebSerial.println(hex);
-    }    
-  }
-  if (nDevices == 0) {
-    Serial.println("No I2C devices found\n");
-    WebSerial.println("No I2C devices found\n");
-  }
-  else {
-    Serial.println("done\n");
-    WebSerial.println("done\n");
-  }
-  delay(5000);   
+ compass.read();
+ int x, y, z;
+  x = compass.getX();
+  y = compass.getY();
+  z = compass.getZ();
+  WebSerial.print("X: ");
+  WebSerial.print(x);
+  WebSerial.print(" Y: ");
+  WebSerial.print(y);
+  WebSerial.print(" Z: ");
+  WebSerial.print(z);
+
+  int azimuth = compass.getAzimuth();
+  WebSerial.print(" AZ: ");
+  WebSerial.print(azimuth);
+  char compassArray[3];
+  compass.getDirection(compassArray, azimuth);
+  WebSerial.print(" dir1: ");
+  WebSerial.print(char(compassArray[0]));
+  WebSerial.print(" dir2: ");
+  WebSerial.print(compassArray[1]);
+  WebSerial.print(" dir2: ");
+  WebSerial.print(compassArray[2]);
+  WebSerial.println();
+ delay(5000);   
 
 }
